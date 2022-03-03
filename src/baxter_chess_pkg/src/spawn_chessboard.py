@@ -30,8 +30,10 @@ if __name__ == '__main__':
     orient = Quaternion(*tf.transformations.quaternion_from_euler(0, 0, 0))
     board_pose = Pose(Point(0.3,0.55,0.78), orient)
     frame_dist = 0.025
-    model_path = rospkg.RosPack().get_path('chess_baxter')+"/models/"
-    
+    #model_path = rospkg.RosPack().get_path('chess_baxter')+"/models/"
+    model_path = rospkg.RosPack().get_path('baxter_chess_pkg')+"/models/"
+    print(model_path)
+
     with open(model_path + "chessboard/model.sdf", "r") as f:
         board_xml = f.read().replace('\n', '')
 
@@ -47,7 +49,7 @@ if __name__ == '__main__':
         with open(model_path + each+".sdf", "r") as f:
             pieces_xml[each] = f.read().replace('\n', '')
 
-    # board_setup = ['rnbqkbnr', 'pppppppp', '', '', '', '', 'PPPPPPPP', 'RNBQKBNR']
+    #board_setup = ['rnbqkbnr', 'pppppppp', '', '', '', '', 'PPPPPPPP', 'RNBQKBNR']
     board_setup = ['r******r', '', '**k*****', '', '', '******K*', '', 'R******R']
 
     piece_positionmap = dict()
@@ -62,6 +64,8 @@ if __name__ == '__main__':
             piece_positionmap[str(row)+str(col)] = [pose.position.x, pose.position.y, pose.position.z-0.93] #0.93 to compensate Gazebo RViz origin difference
             if piece in list_pieces:
                 piece_names.append("%s%d" % (piece,col))
+                print srv_call("%s%d" % (piece,col), pieces_xml[piece], "", pose, "world")
+
 
     rospy.set_param('board_setup', board_setup) # Board setup
     rospy.set_param('list_pieces', list_pieces) # List of unique pieces
