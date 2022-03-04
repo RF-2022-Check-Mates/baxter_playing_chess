@@ -20,12 +20,19 @@ if __name__ == '__main__':
     rate = rospy.Rate(1.0)
     while not rospy.is_shutdown():
         try:
-            transformation = tfBuffer.lookup_transform('base', 'block', rospy.Time())
+            list_pieces = rospy.get_param('list_pieces')
+            board_setup = rospy.get_param('board_setup')
+            for row, each in enumerate(board_setup):
+                for col, piece in enumerate(each):
+                    if piece in list_pieces:
+                        piece_name = "%s%d" % (piece, col)
+                        transformation = tfBuffer.lookup_transform('base', piece_name, rospy.Time())
+                        rospy.loginfo("Translation: \n" + str(transformation.transform.translation))
+                        rospy.loginfo("Quaternion: \n" + str(transformation.transform.rotation))
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             rate.sleep()
             continue
 
-        rospy.loginfo("Translation: \n" + str(transformation.transform.translation))
-        rospy.loginfo("Quaternion: \n" + str(transformation.transform.rotation))
+        
 
         rate.sleep()

@@ -44,6 +44,7 @@ class PickAndPlaceMoveIt(object):
         # This is an interface to one group of joints.  In our case, we want to use the "right_arm".
         # We will use this to plan and execute motions
         self._group = moveit_commander.MoveGroupCommander(limb+"_arm")
+        print("Successfully initialized!\n")
 
     def move_to_start(self, start_angles=None):
         print("Moving the {0} arm to start pose...".format(self._limb_name))
@@ -177,18 +178,10 @@ def main():
     tfBuffer = tf2_ros.Buffer()
     listener = tf2_ros.TransformListener(tfBuffer)
 
-    # Load Gazebo Models via Spawning Services
-    # Note that the models reference is the /world frame
-    # and the IK operates with respect to the /base frame
-    delete_gazebo_models()
-    load_gazebo_models()
-    # Remove models from the scene on shutdown
-    rospy.on_shutdown(delete_gazebo_models)
-
     # Wait for the All Clear from emulator startup
     rospy.wait_for_message("/robot/sim/started", Empty)
 
-    limb = 'left'
+    limb = 'right'
     hover_distance = 0.15  # meters
 
     # An orientation for gripper fingers to be overhead and parallel to the obj
@@ -197,7 +190,7 @@ def main():
     # we need to compensate for this offset which is 0.93 from the ground in gazebo to
     # the actual 0, 0, 0 in Rviz.
     starting_pose = Pose(
-        position=Point(x=0.7, y=0.135, z=0.35),
+        position=Point(x=0.7, y=-0.135, z=0.35),
         orientation=overhead_orientation)
     pnp = PickAndPlaceMoveIt(limb, hover_distance)
 
@@ -231,24 +224,41 @@ def main():
     pnp.move_to_start(starting_pose)
     idx = 0
     rate = rospy.Rate(1.0)
+    piece_names = rospy.get_param('piece_names')
+    piece_target_position_map = rospy.get_param("piece_target_position_map")
+    print(type(piece_target_position_map))
+    print(piece_target_position_map.keys())
     while not rospy.is_shutdown():
-        try:
-            transformation = tfBuffer.lookup_transform('base', 'block', rospy.Time())
-        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-            rate.sleep()
-            continue
-        rospy.loginfo("Translation: \n" + str(transformation.transform.translation))
-        #rospy.loginfo("Quaternion: \n" + str(transformation.transform.rotation))
-        current_pose = Pose(
-            position=Point(x=transformation.transform.translation.x + 0.02, y=transformation.transform.translation.y +0.025, z=transformation.transform.translation.z + 0.015),
-            orientation=overhead_orientation)
-        print("\nActual translation:\n" + str(current_pose))
-        print("\nPicking...")
-        #pnp.pick(block_poses[idx])
-        pnp.pick(current_pose)
-        print("\nPlacing...")
-        idx = (idx+1) % len(block_poses)
-        pnp.place(block_poses[idx])
+        for piece in piece_names:
+            try:
+                transformation = tfBuffer.lookup_transform('base', piece, rospy.Time())
+            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+                rate.sleep()
+                continue
+            if piece == "r0":
+                current_pose = Pose(
+                position=Point(x=transformation.transform.translation.x, y=transformation.transform.translation.y, z=transformation.transform.translation.z),
+                orientation=overhead_orientation)
+                #print("\nActual translation:\n" + str(current_pose))
+                pnp.pick(current_pose)
+                print("\nPlacing...")
+                x,y,z = piece_target_position_map['11']
+                pnp.place(Pose(
+                    position=Point(x=x, y=y, z=z),
+                    orientation=overhead_orientation))
+                #rospy.loginfo("Piece name: " + piece)
+                #rospy.loginfo("\nTranslation: \n" + str(transformation.transform.translation))
+            #rospy.loginfo("Quaternion: \n" + str(transformation.transform.rotation))
+            # current_pose = Pose(
+            #     position=Point(x=transformation.transform.translation.x + 0.02, y=transformation.transform.translation.y +0.025, z=transformation.transform.translation.z + 0.015),
+            #     orientation=overhead_orientation)
+            # print("\nActual translation:\n" + str(current_pose))
+            # print("\nPicking...")
+            # #pnp.pick(block_poses[idx])
+            # #pnp.pick(current_pose)
+            # print("\nPlacing...")
+            # idx = (idx+1) % len(block_poses)
+            # #pnp.place(block_poses[idx])
     
     return 0
 
