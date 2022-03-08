@@ -18,8 +18,9 @@ if __name__ == '__main__':
     with open(model_path + "cafe_table/model.sdf", "r") as table_file:
         table_xml = table_file.read().replace('\n', '')
 
-    move_in_x = 0.2
-    table_pose=Pose(position=Point(x=0.73+move_in_x, y=0.4 - 0.4, z=0.0))
+    move_in_x = 0.15
+    move_in_y = -0.2
+    table_pose=Pose(position=Point(x=0.73+move_in_x, y=0.4 + move_in_y, z=0.0))
     try:
         spawn_sdf = rospy.ServiceProxy('/gazebo/spawn_sdf_model', SpawnModel)
         spawn_sdf("cafe_table", table_xml, "/", table_pose, "world")
@@ -29,7 +30,7 @@ if __name__ == '__main__':
     
     # ChessBoard
     orient = Quaternion(*tf.transformations.quaternion_from_euler(0, 0, 0))
-    board_pose = Pose(Point(0.3 +move_in_x,0.55 - 0.3,0.78), orient)
+    board_pose = Pose(Point(0.3 + move_in_x,0.55 + move_in_y,0.78), orient)
     frame_dist = 0.025
     #model_path = rospkg.RosPack().get_path('chess_baxter')+"/models/"
     model_path = rospkg.RosPack().get_path('baxter_chess_pkg')+"/models/"
@@ -51,7 +52,14 @@ if __name__ == '__main__':
             pieces_xml[each] = f.read().replace('\n', '')
 
     #board_setup = ['rnbqkbnr', 'pppppppp', '', '', '', '', 'PPPPPPPP', 'RNBQKBNR']
-    board_setup = ['r******r', '********', '**k*****','********','********', '******K*', '********', 'R******R']
+    board_setup = [ '********', 
+                    '**r**r**', 
+                    '***k****',
+                    '********',
+                    '****K***', 
+                    '*R****R*', 
+                    '********', 
+                    '********']
 
     piece_positionmap = dict()
     piece_names = []

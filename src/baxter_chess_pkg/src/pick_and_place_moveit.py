@@ -107,7 +107,12 @@ class PickAndPlaceMoveIt(object):
         self.gripper_open()
         # servo above pose
         self._approach(pose)
+        rospy.sleep(1.5)
         # servo to pose
+        current_pose = copy.deepcopy(pose)
+        current_pose.position.z += 0.06
+        self._servo_to_pose(current_pose)
+        rospy.sleep(1.0)
         self._servo_to_pose(pose)
         # close gripper
         self.gripper_close()
@@ -118,7 +123,9 @@ class PickAndPlaceMoveIt(object):
         # servo above pose
         self._approach(pose)
         # servo to pose
-        self._servo_to_pose(pose)
+        current_pose = copy.deepcopy(pose)
+        current_pose.position.z += 0.06  
+        self._servo_to_pose(current_pose)
         # open the gripper
         self.gripper_open()
         # retract to clear object
@@ -180,7 +187,7 @@ def main():
 
     # Wait for the All Clear from emulator startup
     rospy.wait_for_message("/robot/sim/started", Empty)
-
+    
     limb = 'right'
     hover_distance = 0.15  # meters
 
@@ -194,31 +201,6 @@ def main():
         orientation=overhead_orientation)
     pnp = PickAndPlaceMoveIt(limb, hover_distance)
 
-    block_poses = list()
-    # The Pose of the block in its initial location.
-    # You may wish to replace these poses with estimates
-    # from a perception node.
-
-    # NOTE: Remember that there's an offset in Rviz wrt Gazebo. We need
-    # to command MoveIt! to go below because the table is 74 cm height.
-    # Since the offset is 0.93, we just simply need to substract
-    # 0.74 - 0.93 = -0.15 in Z
-    block_poses.append(Pose(
-        position=Point(x=0.7, y=0.135, z=-0.14),
-        orientation=overhead_orientation))
-    # Feel free to add additional desired poses for the object.
-    block_poses.append(Pose(
-        position=Point(x=0.8, y=0.135, z=-0.14),
-        orientation=overhead_orientation))
-    
-    block_poses.append(Pose(
-        position=Point(x=0.7, y=-0.135, z=-0.14),
-        orientation=overhead_orientation))
-
-    # Each additional pose will get its own pick and place.
-    block_poses.append(Pose(
-        position=Point(x=0.65, y=0, z=-0.14),
-        orientation=overhead_orientation))
 
     # Move to the desired starting angles
     pnp.move_to_start(starting_pose)
@@ -235,30 +217,18 @@ def main():
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
                 rate.sleep()
                 continue
-            if piece == "r0":
+            if piece == "k3":
                 current_pose = Pose(
                 position=Point(x=transformation.transform.translation.x, y=transformation.transform.translation.y, z=transformation.transform.translation.z),
                 orientation=overhead_orientation)
-                #print("\nActual translation:\n" + str(current_pose))
+                print("\nPicking...")
                 pnp.pick(current_pose)
                 print("\nPlacing...")
-                x,y,z = piece_target_position_map['11']
+                x,y,z = piece_target_position_map['21']
                 pnp.place(Pose(
                     position=Point(x=x, y=y, z=z),
                     orientation=overhead_orientation))
-                #rospy.loginfo("Piece name: " + piece)
-                #rospy.loginfo("\nTranslation: \n" + str(transformation.transform.translation))
-            #rospy.loginfo("Quaternion: \n" + str(transformation.transform.rotation))
-            # current_pose = Pose(
-            #     position=Point(x=transformation.transform.translation.x + 0.02, y=transformation.transform.translation.y +0.025, z=transformation.transform.translation.z + 0.015),
-            #     orientation=overhead_orientation)
-            # print("\nActual translation:\n" + str(current_pose))
-            # print("\nPicking...")
-            # #pnp.pick(block_poses[idx])
-            # #pnp.pick(current_pose)
-            # print("\nPlacing...")
-            # idx = (idx+1) % len(block_poses)
-            # #pnp.place(block_poses[idx])
+               
     
     return 0
 
