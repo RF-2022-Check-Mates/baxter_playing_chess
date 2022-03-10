@@ -28,6 +28,16 @@ import baxter_interface
 import moveit_commander
 
 
+moves = [
+    ("R1","53"),
+    ("k3","22"),
+    ("R6","62"),
+    ("k3","21"),
+    ("R1","51"),
+    ("k3","20"),
+    ("R6","60"),
+]
+
 class PickAndPlaceMoveIt(object):
     def __init__(self, limb, hover_distance=0.15, verbose=True):
         self._limb_name = limb  # string
@@ -126,58 +136,17 @@ class PickAndPlaceMoveIt(object):
         # servo above pose
         self._approach(pose)
         # servo to pose
+        rospy.sleep(1.5)
         current_pose = copy.deepcopy(pose)
-        current_pose.position.z += 0.06  
+        current_pose.position.z += 0.03 
+        self._group.set_max_velocity_scaling_factor(0.5)
         self._servo_to_pose(current_pose)
-        rospy.sleep(1.0)
+        rospy.sleep(2.2)
         # open the gripper
         self.gripper_open()
         # retract to clear object
         self._retract()
-
-
-def load_gazebo_models(table_pose=Pose(position=Point(x=1.0, y=0.0, z=0.0)),
-                       table_reference_frame="world",
-                       block_pose=Pose(position=Point(x=0.68, y=0.11, z=0.7825)),
-                       block_reference_frame="world"):
-    # Get Models' Path
-    model_path = rospkg.RosPack().get_path('baxter_sim_examples')+"/models/"
-    # Load Table SDF
-    table_xml = ''
-    with open(model_path + "cafe_table/model.sdf", "r") as table_file:
-        table_xml = table_file.read().replace('\n', '')
-    # Load block SDF
-    block_xml = ''
-    with open(model_path + "block/model.sdf", "r") as block_file:
-        block_xml = block_file.read().replace('\n', '')
-    # Spawn Table SDF
-    rospy.wait_for_service('/gazebo/spawn_sdf_model')
-    try:
-        spawn_sdf = rospy.ServiceProxy('/gazebo/spawn_sdf_model', SpawnModel)
-        spawn_sdf("cafe_table", table_xml, "/", table_pose, table_reference_frame)
-    except rospy.ServiceException, e:
-        rospy.logerr("Spawn SDF service call failed: {0}".format(e))
-    # Spawn block SDF
-    rospy.wait_for_service('/gazebo/spawn_sdf_model')
-    try:
-        spawn_sdf = rospy.ServiceProxy('/gazebo/spawn_sdf_model', SpawnModel)
-        spawn_sdf("block", block_xml, "/", block_pose, block_reference_frame)
-    except rospy.ServiceException, e:
-        rospy.logerr("Spawn SDF service call failed: {0}".format(e))
-
-
-def delete_gazebo_models():
-    # This will be called on ROS Exit, deleting Gazebo models
-    # Do not wait for the Gazebo Delete Model service, since
-    # Gazebo should already be running. If the service is not
-    # available since Gazebo has been killed, it is fine to error out
-    try:
-        delete_model = rospy.ServiceProxy('/gazebo/delete_model', DeleteModel)
-        delete_model("cafe_table")
-        delete_model("block")
-    except rospy.ServiceException, e:
-        rospy.loginfo("Delete Model service call failed: {0}".format(e))
-
+        self._group.set_max_velocity_scaling_factor(1.0)
 
 def main():
     moveit_commander.roscpp_initialize(sys.argv)
@@ -220,26 +189,25 @@ def main():
     print(type(piece_target_position_map))
     print(piece_target_position_map.keys())
     while not rospy.is_shutdown():
-        for piece in piece_names:
+        for move in moves:
             try:
-                transformation = tfBuffer.lookup_transform('base', piece, rospy.Time())
+                transformation = tfBuffer.lookup_transform('base', move[0], rospy.Time())
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
                 rate.sleep()
                 continue
-            if piece == "k3":
-                current_pose = Pose(
-                position=Point(x=transformation.transform.translation.x, y=transformation.transform.translation.y, z=transformation.transform.translation.z),
-                orientation=overhead_orientation)
-                print("\nPicking...")
-                pnp.pick(current_pose)
-                print("\nPlacing...")
-                x,y,z = piece_target_position_map['21']
-                pnp.place(Pose(
-                    position=Point(x=x, y=y, z=z),
-                    orientation=overhead_orientation))
-               
-    
-    return 0
+        
+            current_pose = Pose(
+            position=Point(x=transformation.transform.translation.x, y=transformation.transform.translation.y, z=transformation.transform.translation.z - 0.02),
+            orientation=overhead_orientation)
+            print("\nPicking...")
+            pnp.pick(current_pose)
+            print("\nPlacing...")
+            x,y,z = piece_target_position_map[move[1]]
+            pnp.place(Pose(
+                position=Point(x=x, y=y, z=z),
+                orientation=overhead_orientation))
+                
+        return 0
 
 
 if __name__ == '__main__':
