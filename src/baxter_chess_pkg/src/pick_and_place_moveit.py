@@ -113,11 +113,14 @@ class PickAndPlaceMoveIt(object):
         current_pose.position.z += 0.06
         self._servo_to_pose(current_pose)
         rospy.sleep(1.0)
+        self._group.set_max_velocity_scaling_factor(0.5)
         self._servo_to_pose(pose)
         # close gripper
         self.gripper_close()
         # retract to clear object
         self._retract()
+        self._group.set_max_velocity_scaling_factor(1.0)
+        
 
     def place(self, pose):
         # servo above pose
@@ -126,6 +129,7 @@ class PickAndPlaceMoveIt(object):
         current_pose = copy.deepcopy(pose)
         current_pose.position.z += 0.06  
         self._servo_to_pose(current_pose)
+        rospy.sleep(1.0)
         # open the gripper
         self.gripper_open()
         # retract to clear object
@@ -188,7 +192,7 @@ def main():
     # Wait for the All Clear from emulator startup
     rospy.wait_for_message("/robot/sim/started", Empty)
     
-    limb = 'right'
+    limb = 'left'
     hover_distance = 0.15  # meters
 
     # An orientation for gripper fingers to be overhead and parallel to the obj
@@ -196,8 +200,13 @@ def main():
     # NOTE: Gazebo and Rviz has different origins, even though they are connected. For this
     # we need to compensate for this offset which is 0.93 from the ground in gazebo to
     # the actual 0, 0, 0 in Rviz.
+    starting_pose2 = Pose(
+        position=Point(x=0.2, y=0.35, z=0.25),
+        orientation=overhead_orientation)
+    pnp = PickAndPlaceMoveIt(limb, hover_distance)
+
     starting_pose = Pose(
-        position=Point(x=0.7, y=-0.135, z=0.35),
+        position=Point(x=0.7, y=0.135, z=0.35),
         orientation=overhead_orientation)
     pnp = PickAndPlaceMoveIt(limb, hover_distance)
 
