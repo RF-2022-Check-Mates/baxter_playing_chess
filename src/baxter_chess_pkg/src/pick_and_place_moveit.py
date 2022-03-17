@@ -28,6 +28,10 @@ import baxter_interface
 import moveit_commander
 
 
+#
+#    Our choreography
+#       - First part of each tuple is the name of the piece
+#       - Second is the coordinate we want the piece to be moved to
 moves = [
     ("R1","53"),
     ("k3","22"),
@@ -123,14 +127,18 @@ class PickAndPlaceMoveIt(object):
         current_pose.position.z += 0.06
         self._servo_to_pose(current_pose)
         rospy.sleep(1.0)
+
+        # Lower the speed of the movement to avoid jitter
         self._group.set_max_velocity_scaling_factor(0.5)
         self._servo_to_pose(pose)
         # close gripper
         self.gripper_close()
         # retract to clear object
         self._retract()
+
+        # Change speed back to normal
         self._group.set_max_velocity_scaling_factor(1.0)
-        
+
 
     def place(self, pose):
         # servo above pose
@@ -138,20 +146,27 @@ class PickAndPlaceMoveIt(object):
         # servo to pose
         rospy.sleep(1.5)
         current_pose = copy.deepcopy(pose)
-        current_pose.position.z += 0.03 
+
+        # Offset to drop the piece from
+        current_pose.position.z += 0.03
+
+        # Lower the movement speed
         self._group.set_max_velocity_scaling_factor(0.5)
         self._servo_to_pose(current_pose)
+
+        # Wait until the arm stops shaking from the movement
         rospy.sleep(2.2)
         # open the gripper
         self.gripper_open()
         # retract to clear object
         self._retract()
+
+        # Change speed back to normal
         self._group.set_max_velocity_scaling_factor(1.0)
 
 def main():
     moveit_commander.roscpp_initialize(sys.argv)
     rospy.init_node("ik_pick_and_place_moveit")
-    #rospy.init_node('baxter_tf_listener')
 
     # This creates a transform listener object; once created, it starts receiving
     # transformations using the /tf topic and buffers them up for up to 10 seconds.
@@ -160,7 +175,7 @@ def main():
 
     # Wait for the All Clear from emulator startup
     rospy.wait_for_message("/robot/sim/started", Empty)
-    
+
     limb = 'left'
     hover_distance = 0.15  # meters
 
@@ -189,24 +204,32 @@ def main():
     print(type(piece_target_position_map))
     print(piece_target_position_map.keys())
     while not rospy.is_shutdown():
+        # Perform the choreography
         for move in moves:
             try:
                 transformation = tfBuffer.lookup_transform('base', move[0], rospy.Time())
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
                 rate.sleep()
                 continue
-        
+
+            # Get the position of the piece
             current_pose = Pose(
             position=Point(x=transformation.transform.translation.x, y=transformation.transform.translation.y, z=transformation.transform.translation.z - 0.02),
             orientation=overhead_orientation)
             print("\nPicking...")
+
+            # Pick the piece
             pnp.pick(current_pose)
             print("\nPlacing...")
+
+            # Get the position from the piece_target_position_map provided by spawn_chessboard
             x,y,z = piece_target_position_map[move[1]]
+
+            # Drop the piece to the wanted position
             pnp.place(Pose(
                 position=Point(x=x, y=y, z=z),
                 orientation=overhead_orientation))
-                
+
         return 0
 
 

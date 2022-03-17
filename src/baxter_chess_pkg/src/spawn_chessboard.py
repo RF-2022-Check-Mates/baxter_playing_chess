@@ -11,7 +11,7 @@ if __name__ == '__main__':
     rospy.wait_for_service("gazebo/spawn_sdf_model")
 
     srv_call = rospy.ServiceProxy("gazebo/spawn_sdf_model", SpawnModel)
-    
+
     # Table
     model_path = rospkg.RosPack().get_path('baxter_sim_examples')+"/models/"
     table_xml = ''
@@ -26,8 +26,8 @@ if __name__ == '__main__':
         spawn_sdf("cafe_table", table_xml, "/", table_pose, "world")
     except rospy.ServiceException, e:
         rospy.logerr("Spawn SDF service call failed: {0}".format(e))
-    
-    
+
+
     # ChessBoard
     orient = Quaternion(*tf.transformations.quaternion_from_euler(0, 0, 0))
     board_pose = Pose(Point(0.3 + move_in_x,0.55 + move_in_y,0.78), orient)
@@ -51,7 +51,7 @@ if __name__ == '__main__':
         with open(model_path + each+".sdf", "r") as f:
             pieces_xml[each] = f.read().replace('\n', '')
 
-    #board_setup = ['rnbqkbnr', 'pppppppp', '', '', '', '', 'PPPPPPPP', 'RNBQKBNR']
+    # All the * are necessary as we need the coordinates in the piece_positionmap
     board_setup = [ '********', #0
                     '**r**r**', #1
                     '***k****', #2
@@ -61,16 +61,24 @@ if __name__ == '__main__':
                     '******R*', #6
                     '********'] #7
 
+    # A map of tile coordinates to actual positions
     piece_positionmap = dict()
+
+    # Names of spawned pieces
     piece_names = []
     for row, each in enumerate(board_setup):
-        # print row
         for col, piece in enumerate(each):
             pose = deepcopy(board_pose)
+
+            # Set the piece position
             pose.position.x = board_pose.position.x + frame_dist + origin_piece + row * (2 * origin_piece)
             pose.position.y = board_pose.position.y - 0.55+ frame_dist + origin_piece + col * (2 * origin_piece)
             pose.position.z += 0.018
+
+            # Set the tile coordinate to correspond with an actual position
             piece_positionmap[str(row)+str(col)] = [pose.position.x, pose.position.y, pose.position.z-0.93] #0.93 to compensate Gazebo RViz origin difference
+
+            # Spawn a piece
             if piece in list_pieces:
                 piece_names.append("%s%d" % (piece,col))
                 print srv_call("%s%d" % (piece,col), pieces_xml[piece], "", pose, "world")
